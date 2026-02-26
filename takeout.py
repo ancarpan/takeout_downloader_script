@@ -39,7 +39,7 @@ CHUNK_SIZE = 1024 * 1024  # 1MB chunks
 DEFAULT_PARALLEL = 1
 MAX_PARALLEL = 20
 DEFAULT_FILE_COUNT = 100
-DEFAULT_OUTPUT_DIR = "./downloads"
+DEFAULT_OUTPUT_DIR = "C:/Users/tim/Downloads"
 SIZE_HISTORY_FILE = ".takeout_sizes.json"
 
 # =============================================================================
@@ -178,19 +178,35 @@ def is_powershell_format(text: str) -> bool:
 
 def extract_cookie_from_curl(curl_text: str) -> str:
     """Extract cookie value from a cURL command, PowerShell command, or raw cookie string."""
+    if not curl_text:
+        return ""
+    
     # Check if this is PowerShell format
     if is_powershell_format(curl_text):
         return extract_cookies_from_powershell(curl_text)
     
     # Try to find Cookie header in cURL command
-    match = re.search(r"-H\s*['\"]Cookie:\s*([^'\"]+)['\"]", curl_text, re.IGNORECASE)
+    # -H 'Cookie: ...'
+    match = re.search(r"-H\s+['\"]Cookie:\s*([^'\"]+)['\"]", curl_text, re.IGNORECASE)
     if match:
-        return match.group(1).strip()
+        cookie = match.group(1).strip()
+        # Remove escaped backslashes if present
+        return cookie.replace('\\\'', '\'').replace('\\"', '"')
     
+    # Try -b '...' or --cookie '...'
+    match = re.search(r"(?:-b|--cookie)\s+['\"]([^'\"]+)['\"]", curl_text)
+    if match:
+        cookie = match.group(1).strip()
+        return cookie.replace('\\\'', '\'').replace('\\"', '"')
+
     # Handle "Cookie: value" format
-    if curl_text.lower().startswith('cookie:'):
-        return curl_text[7:].strip()
+    if curl_text.lower().strip().startswith('cookie:'):
+        return curl_text.strip()[7:].strip()
     
+    # If it starts with 'curl' but no cookie found, it's likely a malformed command or missing cookie
+    if curl_text.strip().lower().startswith('curl '):
+        return ""
+
     # Just return as-is (might be raw cookie)
     cookie = curl_text.strip()
     if (cookie.startswith("'") and cookie.endswith("'")) or \
@@ -202,16 +218,27 @@ def extract_cookie_from_curl(curl_text: str) -> str:
 
 def extract_url_from_curl(curl_text: str) -> Optional[str]:
     """Extract the download URL from a cURL or PowerShell command."""
+    if not curl_text:
+        return None
+
     # Check if this is PowerShell format
     if is_powershell_format(curl_text):
         return extract_url_from_powershell(curl_text)
     
-    # Standard cURL format
+    # Standard cURL format - looking for the URL argument
+    # Often it's the first argument after 'curl'
     match = re.search(r"curl\s+['\"]?(https?://[^'\"\s]+)['\"]?", curl_text, re.IGNORECASE)
     if match:
         url = match.group(1)
         if 'takeout' in url.lower():
             return url
+            
+    # Also look for any URL in the string if curl-style didn't match
+    urls = re.findall(r"https?://[^'\"\s]+", curl_text)
+    for url in urls:
+        if 'takeout-download.usercontent.google.com' in url or 'takeout' in url.lower():
+            return url
+
     return None
 
 
