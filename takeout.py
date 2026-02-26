@@ -39,7 +39,7 @@ CHUNK_SIZE = 1024 * 1024  # 1MB chunks
 DEFAULT_PARALLEL = 1
 MAX_PARALLEL = 20
 DEFAULT_FILE_COUNT = 100
-DEFAULT_OUTPUT_DIR = "C:/Users/tim/Downloads"
+DEFAULT_OUTPUT_DIR = "./downloads"
 SIZE_HISTORY_FILE = ".takeout_sizes.json"
 
 # =============================================================================
