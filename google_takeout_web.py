@@ -303,10 +303,10 @@ def run_downloads(cookie: str, url: str, output_dir: str, parallel: int, file_co
             file_url = f"{base_url}{num:03d}{extension}"
             if query_string:
                 query = query_string
-                # Update the 'i' parameter in query string if it exists (Google uses this for file index)
-                if '&i=' in query or '?i=' in query:
-                    query = re.sub(r'[?&]i=\d+', f'&i={num}', query)
-                    query = query.lstrip('&')
+                # Update the 'i' parameter in query string if it exists (Google uses 0-based indexing)
+                if "&i=" in query or "?i=" in query:
+                    query = re.sub(r"[?&]i=\d+", f"&i={num - 1}", query)
+                    query = query.lstrip("&")
                 file_url += f"?{query}"
             to_download.append((num, file_url, filepath, filename))
         

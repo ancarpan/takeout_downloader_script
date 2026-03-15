@@ -280,10 +280,10 @@ class TakeoutDownloader:
         url = f"{self.base_url}{num:03d}{self.extension}"
         if self.query_string:
             query = self.query_string
-            # Update the 'i' parameter in query string if it exists (Google uses this for file index)
-            if '&i=' in query or '?i=' in query:
-                query = re.sub(r'[?&]i=\d+', f'&i={num}', query)
-                query = query.lstrip('&')
+            # Update the 'i' parameter in query string if it exists (Google uses 0-based indexing)
+            if "&i=" in query or "?i=" in query:
+                query = re.sub(r"[?&]i=\d+", f"&i={num - 1}", query)
+                query = query.lstrip("&")
             url += f"?{query}"
         return url
     
