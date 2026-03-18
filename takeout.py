@@ -279,7 +279,12 @@ class TakeoutDownloader:
         """Get URL for file number."""
         url = f"{self.base_url}{num:03d}{self.extension}"
         if self.query_string:
-            url += f"?{self.query_string}"
+            query = self.query_string
+            # Update the 'i' parameter in query string if it exists (Google uses 0-based indexing)
+            if "&i=" in query or "?i=" in query:
+                query = re.sub(r"[?&]i=\d+", f"&i={num - 1}", query)
+                query = query.lstrip("&")
+            url += f"?{query}"
         return url
     
     def get_filepath(self, num: int) -> Path:

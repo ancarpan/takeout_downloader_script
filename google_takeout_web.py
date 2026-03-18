@@ -7,21 +7,19 @@ This module can be run standalone or launched via: python takeout.py --web
 """
 
 import os
-import sys
+import re
 import threading
 import time
 from pathlib import Path
 from datetime import datetime
-from typing import Optional
 
 from flask import Flask, render_template_string, request, jsonify
 from flask_socketio import SocketIO, emit
 
 # Import shared core
 from takeout import (
-    TakeoutDownloader, SizeHistory, DownloadStats,
-    extract_url_parts, extract_cookie_from_curl, extract_url_from_curl,
-    VERSION, CHUNK_SIZE
+    SizeHistory, extract_url_parts, extract_cookie_from_curl, extract_url_from_curl,
+    CHUNK_SIZE
 )
 import requests
 
@@ -304,7 +302,12 @@ def run_downloads(cookie: str, url: str, output_dir: str, parallel: int, file_co
             
             file_url = f"{base_url}{num:03d}{extension}"
             if query_string:
-                file_url += f"?{query_string}"
+                query = query_string
+                # Update the 'i' parameter in query string if it exists (Google uses 0-based indexing)
+                if "&i=" in query or "?i=" in query:
+                    query = re.sub(r"[?&]i=\d+", f"&i={num - 1}", query)
+                    query = query.lstrip("&")
+                file_url += f"?{query}"
             to_download.append((num, file_url, filepath, filename))
         
         if not to_download:
