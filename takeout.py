@@ -34,13 +34,25 @@ import requests
 # CONFIGURATION & CONSTANTS
 # =============================================================================
 
-VERSION = "4.2.0"
+VERSION = "4.3.0"
 CHUNK_SIZE = 1024 * 1024  # 1MB chunks
 DEFAULT_PARALLEL = 1
 MAX_PARALLEL = 20
 DEFAULT_FILE_COUNT = 100
 DEFAULT_OUTPUT_DIR = "./downloads"
 SIZE_HISTORY_FILE = ".takeout_sizes.json"
+
+# Magic bytes for validating downloaded archive formats
+ARCHIVE_MAGIC = {
+    '.zip': b'PK',
+    '.tgz': b'\x1f\x8b',
+    '.tar.gz': b'\x1f\x8b',
+}
+
+
+def get_magic_bytes(extension: str) -> Optional[bytes]:
+    """Get expected magic bytes for a file extension. Returns None if unknown."""
+    return ARCHIVE_MAGIC.get(extension.lower())
 
 # =============================================================================
 # DATA CLASSES  
@@ -483,10 +495,12 @@ class TakeoutDownloader:
                         return False, "stopped"
                     
                     if chunk:
-                        # Check first chunk for ZIP magic (only on fresh downloads)
-                        if downloaded == 0 and chunk[:2] != b'PK':
-                            temp_path.unlink()
-                            return False, "AUTH_FAILED"
+                        # Check first chunk for archive magic bytes (only on fresh downloads)
+                        if downloaded == 0:
+                            magic = get_magic_bytes(self.extension)
+                            if magic and chunk[:len(magic)] != magic:
+                                temp_path.unlink()
+                                return False, "AUTH_FAILED"
                         
                         f.write(chunk)
                         downloaded += len(chunk)
