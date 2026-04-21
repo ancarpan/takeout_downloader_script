@@ -59,16 +59,16 @@ def signatures_match(sig1, sig2):
 
 
 def find_duplicates(folder):
-    """Find all ZIP files and group potential duplicates by size first."""
-    # Get all ZIP files sorted by name (so lower numbers come first)
-    zip_files = sorted(folder.glob("*.zip"))
+    """Find all archive files and group potential duplicates by size first."""
+    # Get all archive files sorted by name (so lower numbers come first)
+    zip_files = sorted(list(folder.glob("*.zip")) + list(folder.glob("*.tgz")))
     
     if not zip_files:
-        print(f"No ZIP files found in {folder}")
+        print(f"No archive files found in {folder}")
         return []
     
     total_files = len(zip_files)
-    print(f"Found {total_files} ZIP files.")
+    print(f"Found {total_files} archive files.")
     print()
     
     # Step 1: Group by size (instant)

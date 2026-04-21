@@ -19,6 +19,7 @@ from flask_socketio import SocketIO, emit
 # Import shared core
 from takeout import (
     SizeHistory, extract_url_parts, extract_cookie_from_curl, extract_url_from_curl,
+    get_magic_bytes,
     CHUNK_SIZE
 )
 import requests
@@ -82,7 +83,7 @@ def add_log(message: str, log_type: str = 'info'):
             download_state['log'] = download_state['log'][-MAX_LOG_ENTRIES:]
     socketio.emit('log_entry', entry)
 
-def download_file(url: str, output_path: Path, file_index: int, cookie: str, size_history: SizeHistory) -> dict:
+def download_file(url: str, output_path: Path, file_index: int, cookie: str, size_history: SizeHistory, extension: str = ".zip") -> dict:
     """Download a single file with progress tracking and resume support."""
     filename = output_path.name
     result = {
@@ -147,7 +148,7 @@ def download_file(url: str, output_path: Path, file_index: int, cookie: str, siz
                         return result
             temp_path.unlink(missing_ok=True)
             # Retry without resume (recursive call with fresh state)
-            return download_file(url, output_path, file_index, cookie, size_history)
+            return download_file(url, output_path, file_index, cookie, size_history, extension)
         
         response.raise_for_status()
         
@@ -190,12 +191,14 @@ def download_file(url: str, output_path: Path, file_index: int, cookie: str, siz
         with open(temp_path, file_mode) as f:
             for chunk in response.iter_content(chunk_size=CHUNK_SIZE):
                 if chunk:
-                    # Check first chunk for ZIP magic (only on fresh downloads)
-                    if downloaded == 0 and chunk[:2] != b'PK':
-                        temp_path.unlink()
-                        result['message'] = 'Auth failed - not a ZIP'
-                        result['auth_failed'] = True
-                        return result
+                    # Check first chunk for archive magic bytes (only on fresh downloads)
+                    if downloaded == 0:
+                        magic = get_magic_bytes(extension)
+                        if magic and chunk[:len(magic)] != magic:
+                            temp_path.unlink()
+                            result['message'] = 'Auth failed - not a valid archive'
+                            result['auth_failed'] = True
+                            return result
                     
                     f.write(chunk)
                     downloaded += len(chunk)
@@ -320,7 +323,7 @@ def run_downloads(cookie: str, url: str, output_dir: str, parallel: int, file_co
         # Parallel downloads
         with ThreadPoolExecutor(max_workers=parallel) as executor:
             futures = {
-                executor.submit(download_file, url, path, idx, current_cookie, size_history): (idx, name)
+                executor.submit(download_file, url, path, idx, current_cookie, size_history, extension): (idx, name)
                 for idx, url, path, name in to_download
             }
             

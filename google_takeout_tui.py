@@ -30,6 +30,7 @@ import requests
 from takeout import (
     TakeoutDownloader, SizeHistory, DownloadStats,
     extract_url_parts, extract_cookie_from_curl, extract_url_from_curl,
+    get_magic_bytes,
     VERSION, CHUNK_SIZE, DEFAULT_FILE_COUNT, DEFAULT_OUTPUT_DIR, DEFAULT_PARALLEL, MAX_PARALLEL
 )
 
@@ -480,10 +481,12 @@ class TakeoutTUI(App):
                         return False, "Stopped"
                     
                     if chunk:
-                        # Check first chunk for ZIP magic (only on fresh downloads)
-                        if downloaded == 0 and chunk[:2] != b'PK':
-                            temp_path.unlink()
-                            return False, "AUTH_FAILED"
+                        # Check first chunk for archive magic bytes (only on fresh downloads)
+                        if downloaded == 0:
+                            magic = get_magic_bytes(self.downloader.extension)
+                            if magic and chunk[:len(magic)] != magic:
+                                temp_path.unlink()
+                                return False, "AUTH_FAILED"
                         
                         f.write(chunk)
                         downloaded += len(chunk)
