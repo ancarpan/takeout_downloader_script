@@ -6,7 +6,7 @@ services:
     container_name: takeout-downloader
     restart: unless-stopped
     ports:
-      - "8051:5000"
+      - "8052:5000"
     volumes:
       - /data/takeout:/downloads
     environment:
